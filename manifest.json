@@ -1,11 +1,11 @@
 
 {
-  "name": "QR 巡邏",
+  "name": "QR 巡邏（QRCORD）",
   "short_name": "QR巡邏",
-  "start_url": "./index.html",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#0a6",
-  "theme_color": "#0a6",
+  "theme_color": "#0ea5e9",
+  "background_color": "#ffffff",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
