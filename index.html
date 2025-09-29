@@ -5,7 +5,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0a6">
-  <title>QR 巡邏（QRCORD 修正版）</title>
+  <title>QR 巡邏</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png"/>
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,7 +32,7 @@
   <h1>QR 巡邏</h1>
 
   <div class="card">
-    <label>伺服器設定（貼 Apps Script <code>/exec</code>）</label>
+    <label>伺服器設定（會自動讀取 config.json）</label>
     <input id="endpoint" placeholder="例如：https://script.google.com/macros/s/XXXX/exec">
     <div class="row" style="margin-top:10px">
       <button id="save" class="primary">儲存</button>
@@ -73,15 +73,28 @@
   <footer>加入主畫面後可全螢幕使用（PWA）</footer>
   <div id="toast" class="toast"></div>
 
+  <!-- 讀取 config.json：自動填入 /exec 並鎖定欄位 -->
   <script>
-    // 強制顯示 JS 是否在運作
-    console.log("QRCORD index loaded");
+  (async () => { 
+    try { 
+      const res = await fetch('./config.json?v=' + Date.now(), { cache: 'no-store' });
+      const cfg = await res.json();
+      if (cfg.endpoint) { 
+        localStorage.setItem('qrpatrol.endpoint', cfg.endpoint);
+        const epInput = document.getElementById('endpoint');
+        if (epInput) { epInput.value = cfg.endpoint; epInput.readOnly = true; }
+        const saveBtn = document.getElementById('save'); if (saveBtn) saveBtn.style.display = 'none';
+        const pingBtn = document.getElementById('ping'); if (pingBtn) pingBtn.click();
+      }
+      if (cfg.appName && document.title) document.title = cfg.appName;
+    } catch(e) { console.warn('讀取 config.json 失敗，改用手動輸入模式', e); }
+  })();
   </script>
 
   <script>
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator) { 
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=qc1').catch((e)=>console.warn("SW reg fail", e));
+        navigator.serviceWorker.register('./sw.js?v=cfg1').catch(e=>console.warn('SW reg fail', e));
       });
     }
   </script>
@@ -98,13 +111,13 @@
     $("ping").onclick=async()=>{
       const ep=$("endpoint").value.trim();
       if(!ep){toast("請先貼上 /exec 網址","error");return msg("請先貼上 /exec 網址",false)}
-      try{const r=await fetch(ep+"?ping=1",{cache:"no-store"});$("pingMsg").textContent="回應："+await r.text();toast("連線正常","success")}
+      try{const r=await fetch(ep+"?ping=1");$("pingMsg").textContent="回應："+await r.text();toast("連線正常","success")}
       catch(e){$("pingMsg").textContent="無法連線："+e.message;toast("無法連線","error")}
     };
     $("sendManual").onclick=()=>handleScan(($("manual").value||"").trim());
 
     let stream=null, reader=null, nativeTimer=null;
-    let scanningActive=false, isSending=false, lastKey="", lastTime=0;
+    let scanningActive=false, isSending=false, lastKey="", lastTime=0, scanLock=false;
     const COOLDOWN_MS=8000;
 
     $("start").onclick=async()=>{
@@ -128,28 +141,31 @@
           if(!scanningActive) return;
           if(ds && ds.length){
             const text=ds[0].rawValue||"";
-            if(text) await handleScan(text);
+            if(text){ if (scanLock) return; scanLock=true; await handleScan(text); }
           }
-        }catch(_){}
+        }catch(_){} 
       },400);
     }
     async function startZXing(){
-      reader=new ZXing.BrowserMultiFormatReader();
-      let deviceId=null;
-      try{const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==="videoinput");if(devs[0])deviceId=devs[0].deviceId}catch(_){}
-      const constraints=deviceId?{video:{deviceId}}:{video:{facingMode:"environment"}};
-      stream=await navigator.mediaDevices.getUserMedia(constraints);
-      $("preview").srcObject=stream; await $("preview").play();
-      reader.decodeFromVideoDevice(null,$("preview"),async(res,err)=>{
+      reader = new ZXing.BrowserMultiFormatReader();
+      let deviceId;
+      try { 
+        const devs = await ZXing.BrowserCodeReader.listVideoInputDevices();
+        deviceId = (devs.find(d => /back|rear/i.test(d.label)) || devs[0] || {}).deviceId;
+      } catch(_) { }
+      await reader.decodeFromVideoDevice(deviceId || undefined, $("preview"), async (res, err)=>{
         if(!scanningActive) return;
-        if(res){ await handleScan(res.getText()); }
+        if(res && res.getText){ if (scanLock) return; scanLock=true; await handleScan(res.getText()); }
       });
+      try { await $("preview").play(); } catch(_) { }
     }
     function stopAll(){
       if(nativeTimer){clearInterval(nativeTimer);nativeTimer=null}
-      if(reader){try{reader.reset()}catch{} reader=null}
-      if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+      if(reader){try{reader.reset()}catch(_){} try{reader.stopAsyncDecode&&reader.stopAsyncDecode()}catch(_){} reader=null}
+      if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(_){} stream=null}
+      try{$("preview").srcObject=null}catch(_){} 
       msg("已停止",true);
+      scanLock=false;
     }
 
     async function handleScan(raw){
@@ -183,7 +199,7 @@
         const arr=JSON.parse(localStorage.getItem(LS.q)||"[]");arr.push(payload);
         localStorage.setItem(LS.q, JSON.stringify(arr)); renderQueue();
         toast("連線失敗，已暫存離線","error"); msg("連線失敗，已暫存離線",false);
-      }finally{ setTimeout(()=>{isSending=false},1200); }
+      }finally{ setTimeout(()=>{isSending=false},1200); scanLock=false; }
     }
 
     $("flush").onclick=async()=>{
