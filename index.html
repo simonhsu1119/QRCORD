@@ -1,22 +1,23 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0a6">
-  <title>QR 巡邏</title>
+  <title>QR 巡邏 / QR Patrol</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png"/>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     body{font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC",Arial,sans-serif;margin:0;padding:16px;background:#f9fafb}
+    header{display:flex;align-items:center;justify-content:space-between;gap:8px}
     h1{font-size:18px;margin:0 0 8px}
     .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin:10px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
     label{display:block;font-size:14px;margin-bottom:6px}
     input,button{font-size:16px;padding:12px;border-radius:10px;border:1px solid #cbd5e1;width:100%;box-sizing:border-box;background:#fff}
     button.primary{background:#0ea5e9;color:#fff;border-color:#0284c7}
+    .pill{width:auto;border-radius:999px;padding:8px 12px}
     video{width:100%;background:#000;border-radius:12px}
     .row{display:flex;gap:10px}.row>*{flex:1}
     .small{font-size:12px;color:#64748b}.muted{color:#94a3b8}.ok{color:#059669}.err{color:#b91c1c}
@@ -29,51 +30,155 @@
   </style>
 </head>
 <body>
-  <h1>QR 巡邏</h1>
+  <header>
+    <h1 data-i18n="title">QR 巡邏</h1>
+    <button id="langToggle" class="pill">EN</button>
+  </header>
 
   <div class="card">
-    <label>伺服器設定（會自動讀取 config.json）</label>
-    <input id="endpoint" placeholder="例如：https://script.google.com/macros/s/XXXX/exec">
+    <label data-i18n="serverLabel">伺服器設定（貼 Apps Script <code>/exec</code>）</label>
+    <input id="endpoint" placeholder="例如：https://script.google.com/macros/s/XXXX/exec" data-i18n-ph="endpointPH">
     <div class="row" style="margin-top:10px">
-      <button id="save" class="primary">儲存</button>
-      <button id="ping">測試連線</button>
-      <button id="flush">上傳離線</button>
+      <button id="save" class="primary" data-i18n="save">儲存</button>
+      <button id="ping" data-i18n="test">測試連線</button>
+      <button id="flush" data-i18n="uploadOffline">上傳離線</button>
     </div>
     <div id="pingMsg" class="small muted"></div>
   </div>
 
   <div class="card">
-    <label>警衛 ID / 姓名</label>
-    <input id="guard" placeholder="例如：A001 或 王小明">
+    <label data-i18n="guardLabel">警衛 ID / 姓名</label>
+    <input id="guard" placeholder="例如：A001 或 王小明" data-i18n-ph="guardPH">
   </div>
 
   <div class="card">
-    <label>掃描 QR Code</label>
+    <label data-i18n="scanLabel">掃描 QR Code</label>
     <video id="preview" playsinline></video>
     <div class="row" style="margin-top:10px">
-      <button id="start" class="primary">開啟相機並開始掃描</button>
-      <button id="stop">停止</button>
+      <button id="start" class="primary" data-i18n="start">開啟相機並開始掃描</button>
+      <button id="stop" data-i18n="stop">停止</button>
     </div>
-    <div id="status" class="small muted">尚未掃描</div>
+    <div id="status" class="small muted" data-i18n="statusNotStarted">尚未掃描</div>
   </div>
 
   <div class="card">
-    <label>沒有相機？手動輸入站點代碼</label>
+    <label data-i18n="manualLabel">沒有相機？手動輸入站點代碼</label>
     <div class="row">
-      <input id="manual" placeholder="例如：S-01 或 Lobby-Left">
-      <button id="sendManual" class="primary">送出</button>
+      <input id="manual" placeholder="例如：S-01 或 Lobby-Left" data-i18n-ph="manualPH">
+      <button id="sendManual" class="primary" data-i18n="submit">送出</button>
     </div>
   </div>
 
   <div class="card">
-    <label>離線佇列</label>
+    <label data-i18n="queueLabel">離線佇列</label>
     <ul id="queueList" class="small"></ul>
   </div>
 
-  <footer>加入主畫面後可全螢幕使用（PWA）</footer>
+  <footer data-i18n="footer">加入主畫面後可全螢幕使用（PWA）</footer>
   <div id="toast" class="toast"></div>
 
-  <!-- 讀取 config.json：自動填入 /exec 並鎖定欄位 -->
+  <!-- i18n dictionary & toggle -->
+  <script>
+    const I18N = {
+      "zh": {
+        title: "QR 巡邏",
+        serverLabel: "伺服器設定（貼 Apps Script <code>/exec</code>）",
+        endpointPH: "例如：https://script.google.com/macros/s/XXXX/exec",
+        save: "儲存",
+        test: "測試連線",
+        uploadOffline: "上傳離線",
+        guardLabel: "警衛 ID / 姓名",
+        guardPH: "例如：A001 或 王小明",
+        scanLabel: "掃描 QR Code",
+        start: "開啟相機並開始掃描",
+        stop: "停止",
+        statusNotStarted: "尚未掃描",
+        manualLabel: "沒有相機？手動輸入站點代碼",
+        manualPH: "例如：S-01 或 Lobby-Left",
+        submit: "送出",
+        queueLabel: "離線佇列",
+        footer: "加入主畫面後可全螢幕使用（PWA）",
+        t_saved: "設定已儲存",
+        t_needExec: "請先貼上 /exec 網址",
+        t_ok: "連線正常",
+        t_fail: "無法連線",
+        t_scanning: "掃描中…（掃到即自動停止）",
+        t_camFail: "相機開啟失敗：",
+        t_stopped: "已停止",
+        t_decodeFail: "讀取失敗",
+        t_needConfig: "請先設定 /exec 與 警衛ID",
+        t_submitted: "✅ 已送出：「{station}」",
+        t_offlineSaved: "連線失敗，已暫存離線",
+        t_noPending: "沒有待上傳資料",
+        t_allUploaded: "離線資料已全部上傳"
+      },
+      "en": {
+        title: "QR Patrol",
+        serverLabel: "Server (Apps Script <code>/exec</code>)",
+        endpointPH: "e.g. https://script.google.com/macros/s/XXXX/exec",
+        save: "Save",
+        test: "Test",
+        uploadOffline: "Upload Offline",
+        guardLabel: "Guard ID / Name",
+        guardPH: "e.g. A001 or John",
+        scanLabel: "Scan QR Code",
+        start: "Open Camera & Start",
+        stop: "Stop",
+        statusNotStarted: "Not started",
+        manualLabel: "No camera? Enter station manually",
+        manualPH: "e.g. S-01 or Lobby-Left",
+        submit: "Submit",
+        queueLabel: "Offline queue",
+        footer: "Install to Home Screen for full-screen PWA",
+        t_saved: "Saved",
+        t_needExec: "Paste /exec first",
+        t_ok: "OK",
+        t_fail: "Failed",
+        t_scanning: "Scanning… (auto-stop on detection)",
+        t_camFail: "Camera failed: ",
+        t_stopped: "Stopped",
+        t_decodeFail: "Decode failed",
+        t_needConfig: "Set /exec & Guard ID first",
+        t_submitted: "✅ Submitted: {station}",
+        t_offlineSaved: "Network failed, saved offline",
+        t_noPending: "No pending items",
+        t_allUploaded: "All offline items uploaded"
+      }
+    };
+    const LANG_KEY = "qrpatrol.lang";
+    function setLang(lang){
+      const dict = I18N[lang] || I18N.zh;
+      document.documentElement.lang = (lang === "en" ? "en" : "zh-Hant");
+      document.getElementById("langToggle").textContent = (lang === "en" ? "中文" : "EN");
+      document.querySelectorAll("[data-i18n]").forEach(el=>{
+        const k = el.getAttribute("data-i18n");
+        const html = dict[k] || "";
+        el.innerHTML = html;
+      });
+      document.querySelectorAll("[data-i18n-ph]").forEach(el=>{
+        const k = el.getAttribute("data-i18n-ph"); const text = dict[k] || "";
+        el.setAttribute("placeholder", text);
+      });
+      localStorage.setItem(LANG_KEY, lang);
+    }
+    function t(key, params={}){
+      const lang = localStorage.getItem(LANG_KEY) || "zh";
+      const dict = I18N[lang] || I18N.zh;
+      let s = dict[key] || key;
+      Object.keys(params).forEach(p=>{ s = s.replaceAll(`{${p}}`, params[p]); });
+      return s;
+    }
+    window.addEventListener("DOMContentLoaded", ()=>{
+      const init = (localStorage.getItem(LANG_KEY) || ((navigator.language||"").toLowerCase().startsWith("en")? "en":"zh"));
+      setLang(init);
+      document.getElementById("langToggle").onclick = ()=>{
+        const curr = localStorage.getItem(LANG_KEY) || "zh";
+        setLang(curr === "zh" ? "en" : "zh");
+      };
+    });
+  </script>
+
+  <!-- load config.json -->
   <script>
   (async () => { 
     try { 
@@ -94,7 +199,7 @@
   <script>
     if ('serviceWorker' in navigator) { 
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=cfg1').catch(e=>console.warn('SW reg fail', e));
+        navigator.serviceWorker.register('./sw.js?v=i18n1').catch(e=>console.warn('SW reg fail', e));
       });
     }
   </script>
@@ -107,12 +212,12 @@
     $("guard").value=localStorage.getItem(LS.gid)||"";
     renderQueue();
 
-    $("save").onclick=()=>{localStorage.setItem(LS.ep,$("endpoint").value.trim());localStorage.setItem(LS.gid,$("guard").value.trim());toast("設定已儲存","success");msg("設定已儲存",true)};
+    $("save").onclick=()=>{localStorage.setItem(LS.ep,$("endpoint").value.trim());localStorage.setItem(LS.gid,$("guard").value.trim());toast(t("t_saved"),"success");msg(t("t_saved"),true)};
     $("ping").onclick=async()=>{
       const ep=$("endpoint").value.trim();
-      if(!ep){toast("請先貼上 /exec 網址","error");return msg("請先貼上 /exec 網址",false)}
-      try{const r=await fetch(ep+"?ping=1");$("pingMsg").textContent="回應："+await r.text();toast("連線正常","success")}
-      catch(e){$("pingMsg").textContent="無法連線："+e.message;toast("無法連線","error")}
+      if(!ep){toast(t("t_needExec"),"error");return msg(t("t_needExec"),false)}
+      try{const r=await fetch(ep+"?ping=1");$("pingMsg").textContent="Response: "+await r.text();toast(t("t_ok"),"success")}
+      catch(e){$("pingMsg").textContent="Failed: "+e.message;toast(t("t_fail"),"error")}
     };
     $("sendManual").onclick=()=>handleScan(($("manual").value||"").trim());
 
@@ -124,10 +229,10 @@
       try{
         scanningActive=true;
         if('BarcodeDetector'in window){await startNative();}else{await startZXing();}
-        toast("開始掃描","info"); msg("掃描中…（掃到即自動停止）",true);
-      }catch(e){scanningActive=false;toast("相機開啟失敗","error");msg("相機開啟失敗："+e.message,false)}
+        toast(t("t_scanning"),"info"); msg(t("t_scanning"),true);
+      }catch(e){scanningActive=false;toast(t("t_camFail")+e.message,"error");msg(t("t_camFail")+e.message,false)}
     };
-    $("stop").onclick=()=>{scanningActive=false;stopAll();toast("已停止掃描","info")};
+    $("stop").onclick=()=>{scanningActive=false;stopAll();toast(t("t_stopped"),"info")};
 
     async function startNative(){
       const detector=new BarcodeDetector({formats:["qr_code"]});
@@ -143,7 +248,7 @@
             const text=ds[0].rawValue||"";
             if(text){ if (scanLock) return; scanLock=true; await handleScan(text); }
           }
-        }catch(_){} 
+        }catch(_){}
       },400);
     }
     async function startZXing(){
@@ -164,7 +269,7 @@
       if(reader){try{reader.reset()}catch(_){} try{reader.stopAsyncDecode&&reader.stopAsyncDecode()}catch(_){} reader=null}
       if(stream){try{stream.getTracks().forEach(t=>t.stop())}catch(_){} stream=null}
       try{$("preview").srcObject=null}catch(_){} 
-      msg("已停止",true);
+      msg(t("t_stopped"),true);
       scanLock=false;
     }
 
@@ -173,9 +278,9 @@
       scanningActive=false; // 立刻停
       stopAll();
 
-      if(!raw){toast("讀取失敗","error");return msg("讀取失敗",false)}
+      if(!raw){toast(t("t_decodeFail"),"error");return msg(t("t_decodeFail"),false)}
       const ep=$("endpoint").value.trim(), gid=$("guard").value.trim();
-      if(!ep||!gid){toast("請先設定 /exec 與 警衛ID","error");return msg("請先設定 /exec 與 警衛ID",false)}
+      if(!ep||!gid){toast(t("t_needConfig"),"error");return msg(t("t_needConfig"),false)}
 
       let station=raw;
       try{const u=new URL(raw);const s=u.searchParams.get("station")||u.searchParams.get("id");if(s)station=s}catch(_){}
@@ -194,24 +299,24 @@
 
       try{
         await fetch(ep,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
-        toast(`讀取成功：${station}`,"success"); msg("✅ 已送出：「"+station+"」",true);
+        toast(t("t_submitted",{station}),"success"); msg(t("t_submitted",{station}),true);
       }catch(e){
         const arr=JSON.parse(localStorage.getItem(LS.q)||"[]");arr.push(payload);
         localStorage.setItem(LS.q, JSON.stringify(arr)); renderQueue();
-        toast("連線失敗，已暫存離線","error"); msg("連線失敗，已暫存離線",false);
+        toast(t("t_offlineSaved"),"error"); msg(t("t_offlineSaved"),false);
       }finally{ setTimeout(()=>{isSending=false},1200); scanLock=false; }
     }
 
     $("flush").onclick=async()=>{
       const ep=$("endpoint").value.trim();
       const arr=JSON.parse(localStorage.getItem(LS.q)||"[]");
-      if(!ep){toast("請先設定 /exec","error");return msg("請先設定 /exec",false)}
-      if(!arr.length){toast("沒有待上傳資料","info");return msg("沒有待上傳資料",true)}
+      if(!ep){toast(t("t_needExec"),"error");return msg(t("t_needExec"),false)}
+      if(!arr.length){toast(t("t_noPending"),"info");return msg(t("t_noPending"),true)}
       for(const it of arr){ try{ await fetch(ep,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(it)}); }catch(_){ } }
-      localStorage.removeItem(LS.q); renderQueue(); toast("離線資料已全部上傳","success"); msg("離線資料已全部上傳",true);
+      localStorage.removeItem(LS.q); renderQueue(); toast(t("t_allUploaded"),"success"); msg(t("t_allUploaded"),true);
     };
 
-    function renderQueue(){const arr=JSON.parse(localStorage.getItem(LS.q)||"[]");$("queueList").innerHTML=arr.length?arr.map((it,i)=>`<li>${i+1}. ${it.station} @ ${it.scannedAtClient}</li>`).join(""):'<li class="muted">（空）</li>'}
+    function renderQueue(){const arr=JSON.parse(localStorage.getItem(LS.q)||"[]");$("queueList").innerHTML=arr.length?arr.map((it,i)=>`<li>${i+1}. ${it.station} @ ${it.scannedAtClient}</li>`).join(""):'<li class="muted">（空）(empty)</li>'}
     function msg(t,good){const el=$("status");el.textContent=t;el.className="small "+(good?"ok":"err")}
     function toast(text,type){const el=$("toast");el.textContent=text;el.className="toast show "+(type||"info");setTimeout(()=>{el.classList.remove("show")},1800)}
   </script>
